@@ -240,7 +240,7 @@
 
         // Function to initialize the map
         async function initMap() {
-            const API_KEY = 'YOUR_Maps_API_KEY'; // Replace with your actual API key
+            const API_KEY = 'AIzaSyCrD97YvWeDHHPDZYNAa40O4bTieq_PxdA'; // Replace with your actual API key
 
             const { Map } = await google.maps.importLibrary("maps");
             const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
@@ -571,7 +571,7 @@
         // Make sure to enable all these APIs in your Google Cloud Console:
         // Maps JavaScript API, Places API, Geocoding API
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_Maps_API_KEY&callback=initMap&libraries=marker,places,geocoding`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCrD97YvWeDHHPDZYNAa40O4bTieq_PxdA&callback=initMap&libraries=marker,places,geocoding`;
         document.head.appendChild(script);
 
         // Listen for messages from the parent window (Elaria app in Base44)
