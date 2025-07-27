@@ -28,20 +28,6 @@
         .info-window-content p {
             margin-bottom: 5px;
         }
-        .info-window-content .reviews {
-            margin-top: 10px;
-            border-top: 1px solid #eee;
-            padding-top: 10px;
-        }
-        .info-window-content .review-item {
-            margin-bottom: 8px;
-        }
-        .info-window-content .review-author {
-            font-weight: bold;
-        }
-        .info-window-content .review-rating {
-            color: gold;
-        }
         .custom-marker {
             padding: 5px 10px;
             background-color: white;
@@ -70,7 +56,7 @@
 
     <script>
         let map;
-        let activeMarkers = []; // To store all markers currently on the map
+        let activeMarkers = [];
         let infoWindow;
         let currentSegmentId = null; 
 
@@ -79,8 +65,7 @@
 
             const { Map } = await google.maps.importLibrary("maps");
             const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
-            const { Place } = await google.maps.importLibrary("places");
-
+            
             infoWindow = new google.maps.InfoWindow();
             const defaultCenter = { lat: 31.0461, lng: 34.8516 };
 
@@ -95,21 +80,17 @@
                 const location = { lat: parseFloat(lat), lng: parseFloat(lng) };
                 
                 clearAllMarkers();
-
                 map.setCenter(location);
                 map.setZoom(12);
 
-                // Add the main segment marker
-                const segmentMarker = addMarker(location.lat, location.lng, name, 'segment-marker', true);
+                const segmentMarker = addMarker(location.lat, location.lng, name, 'segment-marker');
                 infoWindow.setContent(`<h4>${name}</h4>`);
                 infoWindow.open(map, segmentMarker);
 
-                // Add predefined suggestion markers
                 suggestions.forEach(suggestion => {
                     addMarker(suggestion.lat, suggestion.lng, suggestion.name, 'suggestion-marker');
                 });
 
-                // Load user-saved markers for this segment
                 loadMarkers(currentSegmentId);
             };
 
@@ -124,6 +105,9 @@
                     saveMarkers(currentSegmentId);
                 }
             });
+            
+            // *** NEW: Signal to the parent window that the map is ready. ***
+            window.parent.postMessage({ type: 'MAP_IFRAME_READY' }, '*');
         }
         
         function generateSegmentId(lat, lng) {
@@ -144,7 +128,7 @@
             return element;
         }
 
-        function addMarker(lat, lng, title, type = 'default-marker', isSegmentLocation = false) {
+        function addMarker(lat, lng, title, type = 'default-marker') {
             const position = { lat, lng };
             const marker = new google.maps.marker.AdvancedMarkerElement({
                 map: map,
@@ -153,7 +137,6 @@
                 content: createMarkerContent(title, type),
             });
 
-            marker.isSegmentLocation = isSegmentLocation;
             marker.markerType = type;
 
             marker.addListener("click", async () => {
@@ -199,7 +182,7 @@
         window.addEventListener('message', (event) => {
             if (event.data.type === 'SET_SEGMENT_LOCATION') {
                 const { lat, lng, name, suggestions } = event.data.payload;
-                if (lat && lng) {
+                if (lat && lng && typeof window.setSegmentLocation === 'function') {
                     window.setSegmentLocation(lat, lng, name, suggestions);
                 }
             }
