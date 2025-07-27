@@ -3,162 +3,353 @@
 <head>
     <title>Elaria Trip Segment Map</title>
     <style>
-        /* Always set the map height explicitly to define the size of the div element that contains the map. */
-        #map {
-            height: 100%;
-            width: 100%;
-        }
+        /* General Layout */
         html, body {
             height: 100%;
             margin: 0;
             padding: 0;
             overflow: hidden; /* Prevent scrollbars from the iframe */
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
         }
+        #map {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0; /* Map is background */
+        }
+        #controls-container {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1; /* Controls are foreground */
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 300px;
+            max-width: 90%;
+        }
+
+        /* Search Bar Styles */
+        #search-container {
+            display: flex;
+            gap: 5px;
+            width: 100%;
+        }
+        #search-input {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        #search-button {
+            padding: 8px 12px;
+            background-color: #4285F4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #search-button:hover {
+            background-color: #357ae8;
+        }
+
+        /* Category Filter Styles */
+        #category-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .category-button {
+            padding: 8px 12px;
+            background-color: #e0e0e0;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #333;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        .category-button:hover {
+            background-color: #d0d0d0;
+            border-color: #bbb;
+        }
+        .category-button.active {
+            background-color: #28a745; /* Green for active */
+            color: white;
+            border-color: #28a745;
+        }
+
+        /* Info Window Content */
         .info-window-content {
             font-family: Arial, sans-serif;
             font-size: 14px;
-            padding: 10px;
+            padding: 5px 10px; /* Reduced padding */
+            max-width: 250px; /* Limit width */
         }
         .info-window-content h4 {
             margin-top: 0;
             margin-bottom: 5px;
             color: #333;
+            font-size: 16px;
         }
         .info-window-content p {
             margin-bottom: 5px;
+            line-height: 1.4;
         }
         .info-window-content .reviews {
             margin-top: 10px;
             border-top: 1px solid #eee;
             padding-top: 10px;
+            max-height: 150px; /* Limit review section height */
+            overflow-y: auto; /* Enable scrolling for reviews */
         }
         .info-window-content .review-item {
             margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px dashed #f0f0f0;
+        }
+        .info-window-content .review-item:last-child {
+            border-bottom: none;
         }
         .info-window-content .review-author {
             font-weight: bold;
+            display: block;
+            margin-bottom: 2px;
         }
         .info-window-content .review-rating {
             color: gold;
+            margin-right: 5px;
+        }
+        .info-window-content .read-more {
+            color: #4285F4;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        /* Custom Marker Styling */
+        .custom-marker {
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 2px 6px rgba(0,0,0,.3);
+            white-space: nowrap;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 4px 8px; /* Smaller padding */
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+        .custom-marker svg {
+            width: 16px; /* Icon size */
+            height: 16px;
+            fill: currentColor; /* Use text color for icon */
+        }
+        .segment-marker {
+            background-color: #007bff; /* Blue for segment */
+            color: white;
+            border-color: #007bff;
+        }
+        .segment-marker svg {
+            fill: white;
+        }
+        .user-added-marker {
+            background-color: #28a745; /* Green for user-added */
+            color: white;
+            border-color: #28a745;
+        }
+        .user-added-marker svg {
+            fill: white;
+        }
+        .place-search-marker {
+            background-color: #ffc107; /* Yellow for search results */
+            color: #333;
+            border-color: #ffc107;
+        }
+        .place-search-marker svg {
+            fill: #333;
+        }
+        .category-marker {
+            background-color: #6f42c1; /* Purple for category results */
+            color: white;
+            border-color: #6f42c1;
+        }
+        .category-marker svg {
+            fill: white;
+        }
+        .predefined-marker {
+            background-color: #fd7e14; /* Orange for pre-defined suggestions */
+            color: white;
+            border-color: #fd7e14;
+        }
+        .predefined-marker svg {
+            fill: white;
+        }
+
+        /* Autocomplete dropdown */
+        .pac-container {
+            z-index: 10000 !important; /* Ensure autocomplete is above iframe content */
         }
     </style>
 </head>
 <body>
     <div id="map"></div>
 
+    <div id="controls-container">
+        <div id="search-container">
+            <input type="text" id="search-input" placeholder="Search for places..." />
+            <button id="search-button">Search</button>
+        </div>
+        <div id="category-filters">
+            <button class="category-button" data-category="restaurant">Restaurants</button>
+            <button class="category-button" data-category="activity">Activities</button>
+            <button class="category-button" data-category="lodging">Hotels</button>
+            <button class="category-button" data-category="shopping_mall">Shopping</button>
+            <button class="category-button" data-category="tourist_attraction">Attractions</button>
+            </div>
+    </div>
+
     <script>
         let map;
-        let markers = []; // To store markers added by users
+        let markers = []; // To store all map markers (segment, user, search, category, predefined)
         let infoWindow;
         let currentSegmentLocation = null; // Store the initial segment location
+        let placeService; // Google Maps Places Service
+        let autocomplete; // Google Maps Autocomplete service
+
+        // Object to hold SVG icons for different marker types
+        const markerIcons = {
+            segment: `<svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/></svg>`,
+            user: `<svg viewBox="0 0 24 24"><path d="M12 2c-4.42 0-8 3.58-8 8s8 14 8 14 8-9.58 8-14-3.58-8-8-8zm0 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>`,
+            search: `<svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>`,
+            category: `<svg viewBox="0 0 24 24"><path d="M12 11.55l-5.66-5.66-2.83 2.83L9.17 12l-5.66 5.66 2.83 2.83L12 14.83l5.66 5.66 2.83-2.83L14.83 12l5.66-5.66-2.83-2.83z"/></svg>`,
+            predefined: `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-4-4 1.41-1.41L11 14.17l6.59-6.59L19 9.17z"/></svg>`
+        };
 
         // Function to initialize the map
         async function initMap() {
-            // Get API key from the parent window (Elaria app in Base44) if passed, otherwise use a placeholder
-            // In a real Base44 scenario, you might need to find a way to securely pass this,
-            // or directly embed it if Base44 allows for "secret" variables in custom code blocks.
-            // For this example, replace 'YOUR_Maps_API_KEY' with your actual key.
-            const API_KEY = 'AIzaSyCrD97YvWeDHHPDZYNAa40O4bTieq_PxdA'; 
+            const API_KEY = 'YOUR_Maps_API_KEY'; // Replace with your actual API key
 
             const { Map } = await google.maps.importLibrary("maps");
             const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
-            const { Place, Review } = await google.maps.importLibrary("places"); // Import Places library
+            const { PlacesService, AutocompleteService } = await google.maps.importLibrary("places");
+            const { Geocoder } = await google.maps.importLibrary("geocoding"); // For reverse geocoding
 
-            // Initialize InfoWindow
+            // Initialize services
             infoWindow = new google.maps.InfoWindow();
+            placeService = new PlacesService(map);
+            const geocoder = new Geocoder();
 
-            // Default map center (can be overridden by segment data)
             const defaultCenter = { lat: 31.0461, lng: 34.8516 }; // Center of Israel
 
             map = new Map(document.getElementById("map"), {
                 center: defaultCenter,
                 zoom: 8,
                 mapId: "DEMO_MAP_ID", // Replace with your Map ID if you use Cloud-based map styling
+                // mapId: "YOUR_MAP_ID_FROM_CLOUD_CONSOLE", // Example: if you enabled Cloud-based styling
             });
 
+            // Initialize Autocomplete for the search input
+            const searchInput = document.getElementById('search-input');
+            autocomplete = new google.maps.places.Autocomplete(searchInput, {
+                types: ['geocode', 'establishment'], // Limit to addresses and establishments
+                fields: ['place_id', 'geometry', 'name', 'formatted_address'],
+                componentRestrictions: { country: ["il"] } // Restrict to Israel for relevant results
+            });
+            autocomplete.bindTo('bounds', map); // Bias results towards the current map viewport
+
             // --- Functionality: Immediately show a map of the selected segment location ---
-            // This function will be called by the parent Elaria app
-            window.setSegmentLocation = function(lat, lng, name = "Segment Location") {
+            window.setSegmentLocation = function(lat, lng, name = "Segment Location", suggestions = []) {
                 const location = { lat: parseFloat(lat), lng: parseFloat(lng) };
                 currentSegmentLocation = location;
 
                 map.setCenter(location);
-                map.setZoom(14); // Zoom in on the specific segment location
+                map.setZoom(14);
 
-                // Clear previous segment marker if any
-                markers = markers.filter(marker => !marker.isSegmentLocation);
+                // Clear all markers
+                clearAllMarkers();
 
-                const segmentMarker = new AdvancedMarkerElement({
-                    map: map,
-                    position: location,
-                    title: name,
-                    content: createMarkerContent(name, 'segment-marker'), // Custom styling for segment marker
-                });
-                segmentMarker.isSegmentLocation = true; // Mark this marker as the segment location
-                markers.push(segmentMarker);
+                // Add the segment marker
+                addMarker(location.lat, location.lng, name, 'segment', true);
 
                 // Open info window immediately for the segment location
                 infoWindow.setContent(`<h4>${name}</h4><p>This is your selected segment location.</p>`);
-                infoWindow.open(map, segmentMarker);
+                infoWindow.open(map, markers.find(m => m.isSegmentLocation));
 
-                // Load saved markers for this segment
+                // Load saved user-added markers for this segment
                 loadMarkers(generateSegmentId(lat, lng));
+
+                // Add pre-defined suggestions (from Base44 segment content)
+                if (suggestions && suggestions.length > 0) {
+                    suggestions.forEach(suggestion => {
+                        if (suggestion.lat && suggestion.lng && suggestion.name) {
+                            addMarker(suggestion.lat, suggestion.lng, suggestion.name, 'predefined');
+                        }
+                    });
+                }
             };
 
-            // --- Functionality: Option for users to add markers/labels to the map ---
+            // --- Functionality: Add markers on map click ---
             map.addListener("click", (event) => {
                 const latLng = event.latLng;
                 const markerTitle = prompt("Enter a label for this location (optional):");
 
-                if (markerTitle !== null) { // If user didn't cancel the prompt
-                    addMarker(latLng.lat(), latLng.lng(), markerTitle || "Custom Location");
-                    saveMarkers(generateSegmentId(currentSegmentLocation.lat, currentSegmentLocation.lng));
+                if (markerTitle !== null) {
+                    addMarker(latLng.lat(), latLng.lng(), markerTitle || "Custom Location", 'user');
+                    if (currentSegmentLocation) { // Save only if a segment is active
+                        saveMarkers(generateSegmentId(currentSegmentLocation.lat, currentSegmentLocation.lng));
+                    }
                 }
             });
 
-            // --- Functionality: Option to view information about locations (e.g., location, reviews, details) ---
-            async function addMarker(lat, lng, title) {
+            // --- Unified Add Marker Function with type and custom content ---
+            function addMarker(lat, lng, title, type = 'user', isSegmentLocation = false) {
                 const position = { lat: lat, lng: lng };
                 const marker = new AdvancedMarkerElement({
                     map: map,
                     position: position,
                     title: title,
-                    content: createMarkerContent(title), // Default styling for user-added markers
+                    content: createMarkerContent(title, type),
                 });
+                marker.type = type; // Custom property to identify marker type
+                marker.isSegmentLocation = isSegmentLocation; // Mark if it's the segment's main location
 
-                // Add click listener to display info window
+                // Add click listener to display info window for all markers
                 marker.addListener("click", async () => {
-                    await displayLocationInfo(marker, position, Place, Review);
+                    await displayLocationInfo(marker, position, geocoder);
                 });
 
                 markers.push(marker);
+                return marker; // Return the created marker in case it's needed
             }
 
-            // Helper function to create custom marker content
-            function createMarkerContent(text, className = 'default-marker') {
+            // --- Improved Helper function to create custom marker content with icons ---
+            function createMarkerContent(text, type) {
                 const element = document.createElement('div');
-                element.className = 'custom-marker ' + className;
-                element.style.padding = '5px 10px';
-                element.style.backgroundColor = 'white';
-                element.style.border = '1px solid #ccc';
-                element.style.borderRadius = '5px';
-                element.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
-                element.style.whiteSpace = 'nowrap';
-                element.style.fontSize = '12px';
-                element.style.fontWeight = 'bold';
-                element.textContent = text;
+                element.className = `custom-marker ${type}-marker`;
+                element.innerHTML = `${markerIcons[type] || markerIcons.user} <span>${text}</span>`; // Default to user icon if type not found
                 return element;
             }
 
-            // Function to display location information and reviews
-            async function displayLocationInfo(marker, position, Place, Review) {
+            // --- Function to display location information and reviews (using Geocoder & PlacesService) ---
+            async function displayLocationInfo(marker, position, geocoder) {
                 let contentString = '<div class="info-window-content"><h4>Loading...</h4></div>';
                 infoWindow.setContent(contentString);
                 infoWindow.open(map, marker);
 
                 try {
-                    // Use Geocoding to get address from LatLng
-                    const geocoder = new google.maps.Geocoder();
                     const geocodeResult = await geocoder.geocode({ location: position });
                     let address = "Address not found.";
                     let placeId = null;
@@ -169,83 +360,228 @@
                     }
 
                     let reviewsHtml = '';
+                    let placeDetailsHtml = `<p><strong>Address:</strong> ${address}</p>`;
+                    let placeName = marker.title; // Default to marker title
+
                     if (placeId) {
-                        const place = new Place({ id: placeId });
-                        await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'reviews', 'rating'] });
+                        // Use PlacesService.getDetails to fetch comprehensive info
+                        placeService.getDetails({
+                            placeId: placeId,
+                            fields: ['name', 'formatted_address', 'reviews', 'rating', 'url', 'website', 'photos', 'opening_hours']
+                        }, (place, status) => {
+                            if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+                                placeName = place.name || marker.title;
+                                placeDetailsHtml = `
+                                    <p><strong>Address:</strong> ${place.formatted_address || address}</p>
+                                    ${place.rating ? `<p><strong>Rating:</strong> ${'⭐'.repeat(Math.round(place.rating))} (${place.rating})</p>` : ''}
+                                    ${place.opening_hours && place.opening_hours.isOpen() ? '<p style="color: green; font-weight: bold;">Open Now</p>' : (place.opening_hours ? '<p style="color: red;">Closed Now</p>' : '')}
+                                    ${place.url ? `<p><a href="${place.url}" target="_blank">View on Google Maps</a></p>` : ''}
+                                    ${place.website ? `<p><a href="${place.website}" target="_blank">Website</a></p>` : ''}
+                                `;
 
-                        if (place.reviews && place.reviews.length > 0) {
-                            reviewsHtml = '<div class="reviews"><h5>Reviews:</h5>';
-                            place.reviews.slice(0, 3).forEach(review => { // Show up to 3 reviews
-                                reviewsHtml += `<div class="review-item">
-                                    <span class="review-author">${review.authorAttribution.displayName}:</span>
-                                    <span class="review-rating">${'⭐'.repeat(Math.round(review.rating))}</span>
-                                    <p>${review.text}</p>
-                                </div>`;
-                            });
-                            reviewsHtml += '</div>';
-                        } else {
-                            reviewsHtml = '<div class="reviews"><p>No reviews available for this place.</p></div>';
-                        }
+                                if (place.reviews && place.reviews.length > 0) {
+                                    reviewsHtml = '<div class="reviews"><h5>Reviews:</h5>';
+                                    place.reviews.slice(0, 3).forEach(review => {
+                                        reviewsHtml += `<div class="review-item">
+                                            <span class="review-author">${review.authorAttribution.displayName}:</span>
+                                            <span class="review-rating">${'⭐'.repeat(Math.round(review.rating))}</span>
+                                            <p>${review.text}</p>
+                                        </div>`;
+                                    });
+                                    reviewsHtml += '</div>';
+                                } else {
+                                    reviewsHtml = '<div class="reviews"><p>No reviews available for this place.</p></div>';
+                                }
+
+                                contentString = `
+                                    <div class="info-window-content">
+                                        <h4>${placeName}</h4>
+                                        ${placeDetailsHtml}
+                                        ${reviewsHtml}
+                                    </div>
+                                `;
+                                infoWindow.setContent(contentString);
+                            } else {
+                                console.error("Error fetching Place details:", status);
+                                infoWindow.setContent('<div class="info-window-content"><h4>Error loading details.</h4><p>Could not retrieve full place details.</p></div>');
+                            }
+                        });
                     } else {
-                         reviewsHtml = '<div class="reviews"><p>No Place ID found for reviews.</p></div>';
+                        contentString = `
+                            <div class="info-window-content">
+                                <h4>${placeName}</h4>
+                                ${placeDetailsHtml}
+                                <p>No Place ID found for comprehensive details/reviews.</p>
+                            </div>
+                        `;
+                        infoWindow.setContent(contentString);
                     }
-
-                    contentString = `
-                        <div class="info-window-content">
-                            <h4>${marker.title}</h4>
-                            <p><strong>Address:</strong> ${address}</p>
-                            ${reviewsHtml}
-                        </div>
-                    `;
-                    infoWindow.setContent(contentString);
                 } catch (error) {
-                    console.error("Error fetching place details:", error);
+                    console.error("Error during geocoding or place details fetch:", error);
                     infoWindow.setContent('<div class="info-window-content"><h4>Error loading details.</h4><p>Please try again later.</p></div>');
                 }
             }
 
-            // --- Functionality: Save and Load Markers (Persistent Storage) ---
+            // --- Search Bar Functionality ---
+            autocomplete.addListener('place_changed', () => {
+                const place = autocomplete.getPlace();
+                if (!place.geometry || !place.geometry.location) {
+                    alert("No details available for input: '" + place.name + "'");
+                    return;
+                }
+
+                // Clear previous search results and category markers
+                clearMarkersByType(['search', 'category']);
+
+                map.setCenter(place.geometry.location);
+                map.setZoom(15);
+                addMarker(place.geometry.location.lat(), place.geometry.location.lng(), place.name, 'search');
+
+                // Open info window immediately for search result
+                infoWindow.setContent(`<h4>${place.name}</h4><p>${place.formatted_address}</p>`);
+                infoWindow.open(map, markers.find(m => m.type === 'search' && m.position.lat() === place.geometry.location.lat()));
+            });
+
+            document.getElementById('search-button').addEventListener('click', () => {
+                // Trigger place_changed if text is entered directly
+                // This is a common pattern for when autocomplete doesn't fire for some reason
+                const inputVal = searchInput.value;
+                if (inputVal && autocomplete.getPlace()?.name !== inputVal) { // Only if input changed and not from autocomplete
+                    placeService.findPlaceFromQuery({
+                        query: inputVal,
+                        fields: ['place_id', 'geometry', 'name', 'formatted_address'],
+                        locationBias: map.getBounds()
+                    }, (results, status) => {
+                        if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+                            const place = results[0];
+                            map.setCenter(place.geometry.location);
+                            map.setZoom(15);
+                            clearMarkersByType(['search', 'category']);
+                            addMarker(place.geometry.location.lat(), place.geometry.location.lng(), place.name, 'search');
+                            infoWindow.setContent(`<h4>${place.name}</h4><p>${place.formatted_address}</p>`);
+                            infoWindow.open(map, markers.find(m => m.type === 'search' && m.position.lat() === place.geometry.location.lat()));
+                        } else {
+                            alert('No results found for that search.');
+                            console.error('Search failed:', status);
+                        }
+                    });
+                } else if (autocomplete.getPlace() && autocomplete.getPlace().geometry) {
+                    // If autocomplete already provided a place, center on it
+                    const place = autocomplete.getPlace();
+                    map.setCenter(place.geometry.location);
+                    map.setZoom(15);
+                    clearMarkersByType(['search', 'category']);
+                    addMarker(place.geometry.location.lat(), place.geometry.location.lng(), place.name, 'search');
+                    infoWindow.setContent(`<h4>${place.name}</h4><p>${place.formatted_address}</p>`);
+                    infoWindow.open(map, markers.find(m => m.type === 'search' && m.position.lat() === place.geometry.location.lat()));
+                }
+            });
+
+
+            // --- Category Filtering (Nearby Search) ---
+            document.querySelectorAll('.category-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const category = event.target.dataset.category;
+
+                    // Toggle active class
+                    document.querySelectorAll('.category-button').forEach(btn => btn.classList.remove('active'));
+                    event.target.classList.add('active');
+
+                    // Clear previous category markers
+                    clearMarkersByType(['category', 'search']);
+
+                    if (!currentSegmentLocation) {
+                        alert("Please select a segment location first to search nearby categories.");
+                        return;
+                    }
+
+                    const request = {
+                        location: currentSegmentLocation,
+                        radius: '5000', // Search within 5km radius (adjust as needed)
+                        type: category // This is the Google Places API type
+                    };
+
+                    placeService.nearbySearch(request, (results, status) => {
+                        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+                            results.forEach(place => {
+                                if (place.geometry && place.geometry.location) {
+                                    addMarker(place.geometry.location.lat(), place.geometry.location.lng(), place.name, 'category');
+                                }
+                            });
+                            if (results.length > 0) {
+                                map.setCenter(currentSegmentLocation); // Keep map centered on segment
+                                map.setZoom(13); // Adjust zoom for nearby results
+                            } else {
+                                alert(`No ${category}s found near your segment location.`);
+                            }
+                        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+                            alert(`No ${category}s found near your segment location.`);
+                        } else {
+                            console.error('Nearby search failed:', status);
+                            alert('Error performing nearby search. Please try again.');
+                        }
+                    });
+                });
+            });
+
+            // --- Marker Management ---
+            function clearAllMarkers() {
+                markers.forEach(marker => marker.setMap(null));
+                markers = [];
+            }
+
+            function clearMarkersByType(typesToClear) {
+                markers = markers.filter(marker => {
+                    if (typesToClear.includes(marker.type)) {
+                        marker.setMap(null); // Remove from map
+                        return false; // Filter out
+                    }
+                    return true; // Keep
+                });
+            }
+
+            // --- Persistent Storage (User-added Markers) ---
             function generateSegmentId(lat, lng) {
-                // Create a unique ID for the segment based on its coordinates
                 return `segment-${lat.toFixed(5)}-${lng.toFixed(5)}`;
             }
 
             function saveMarkers(segmentId) {
-                const segmentMarkers = markers.filter(m => !m.isSegmentLocation).map(marker => ({
+                const userMarkers = markers.filter(m => m.type === 'user').map(marker => ({
                     lat: marker.position.lat(),
                     lng: marker.position.lng(),
                     title: marker.title,
                 }));
-                localStorage.setItem(`mapMarkers_${segmentId}`, JSON.stringify(segmentMarkers));
+                localStorage.setItem(`mapMarkers_${segmentId}`, JSON.stringify(userMarkers));
             }
 
             async function loadMarkers(segmentId) {
                 // Clear existing user-added markers before loading new ones
-                markers.filter(m => !m.isSegmentLocation).forEach(marker => marker.setMap(null));
-                markers = markers.filter(m => m.isSegmentLocation); // Keep only the segment location marker
+                clearMarkersByType(['user']);
 
                 const savedMarkers = JSON.parse(localStorage.getItem(`mapMarkers_${segmentId}`));
                 if (savedMarkers) {
                     for (const markerData of savedMarkers) {
-                        await addMarker(markerData.lat, markerData.lng, markerData.title);
+                        addMarker(markerData.lat, markerData.lng, markerData.title, 'user');
                     }
                 }
             }
         }
 
-        // Load the Google Maps JavaScript API
-        // Replace 'YOUR_Maps_API_KEY' with your actual API key
-        // Ensure 'libraries=marker,places' are included to use Advanced Markers and Places API
+        // Load the Google Maps JavaScript API with necessary libraries
+        // Make sure to enable all these APIs in your Google Cloud Console:
+        // Maps JavaScript API, Places API, Geocoding API
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCrD97YvWeDHHPDZYNAa40O4bTieq_PxdA&callback=initMap&libraries=marker,places`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_Maps_API_KEY&callback=initMap&libraries=marker,places,geocoding`;
         document.head.appendChild(script);
 
         // Listen for messages from the parent window (Elaria app in Base44)
         window.addEventListener('message', (event) => {
-            // Ensure the message is from a trusted source if possible in Base44
+            // It's good practice to verify the origin in production to prevent XSS attacks
+            // if (event.origin !== "https://your.elaria.app.domain") return;
+
             if (event.data && event.data.type === 'SET_SEGMENT_LOCATION') {
-                const { lat, lng, name } = event.data.payload;
-                window.setSegmentLocation(lat, lng, name);
+                const { lat, lng, name, suggestions } = event.data.payload;
+                window.setSegmentLocation(lat, lng, name, suggestions);
             }
         });
     </script>
